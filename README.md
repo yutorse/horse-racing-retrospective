@@ -41,6 +41,24 @@ mise run setup
 4. 各データベースにインテグレーションのアクセス権限を付与（データベースページの右上「...」→「接続」→ インテグレーションを選択）
 5. 各データベースの ID を取得
 
+#### データベースのプロパティ設定
+
+**馬データベース**に以下のプロパティが必要です：
+
+- `名前` (Title) - 必須
+
+**レースデータベース**に以下のプロパティが必要です：
+
+- `レース名` (Title) - 必須
+- `開催日` (Date) - 必須
+- `競馬場` (Select) - 必須
+- `距離` (Number) - 必須
+- `グレード` (Select) - オプション
+- `条件` (Rich Text) - オプション
+
+**注意**: プロパティ名は実際の Notion データベースのプロパティ名と一致させる必要があります。
+プロパティ名が異なる場合は、`src/notion_client.py`の該当箇所を編集してください。
+
 ### 4. 環境変数の設定
 
 `mise.toml`に環境変数を設定します：
@@ -76,20 +94,42 @@ mise run uv run src/main.py --mode retrospective --week 2025-01-13
 mise run uv run src/main.py --mode forecast --date 2025-01-17
 ```
 
+### 動作確認
+
+Notion API の接続と基本的な操作をテストするには：
+
+```bash
+mise run test-notion
+```
+
+このスクリプトは以下をテストします：
+
+- 環境変数の設定確認
+- Notion API 接続確認
+- 馬ページの作成・検索
+- レースページの作成・検索
+- ページ間のリンク追加
+
+テスト実行後、Notion で「テスト馬」と「テストレース」のページが作成されていることを確認してください。
+
 ## プロジェクト構造
 
 ```
 horse-racing-retrospective/
 ├── src/
 │   ├── __init__.py
-│   ├── config.py          # 設定管理
-│   ├── models.py           # データモデル
-│   ├── notion_client.py    # Notion API操作
-│   ├── scraper.py          # 出馬票取得
-│   └── main.py             # メインエントリーポイント
-├── scripts/                # 実行スクリプト（今後追加）
-├── mise.toml               # mise設定
-├── requirements.txt        # Python依存関係
+│   ├── config.py              # 設定管理
+│   ├── models.py              # データモデル
+│   ├── notion_client.py       # Notion API操作
+│   ├── scraper.py             # 出馬票取得
+│   ├── main.py                # メインエントリーポイント
+│   └── usecases/              # ユースケース
+│       ├── __init__.py
+│       ├── retrospective.py  # 回顧モード
+│       └── forecast.py        # 予想モード
+├── scripts/                   # 実行スクリプト（今後追加）
+├── mise.toml                  # mise設定
+├── requirements.txt           # Python依存関係
 └── README.md
 ```
 
@@ -97,10 +137,12 @@ horse-racing-retrospective/
 
 - [x] プロジェクト基本構造
 - [x] mise 設定と環境変数管理
-- [ ] Notion API 操作（馬ページ作成・検索）
-- [ ] 出馬票取得機能
-- [ ] 回顧モード実装
-- [ ] 予想モード実装
+- [x] Notion API 操作（馬ページ作成・検索）
+- [x] Notion API 操作（レースページ作成・検索）
+- [x] ページブロック追加機能
+- [x] 回顧モード実装（フレームワーク）
+- [x] 予想モード実装（フレームワーク）
+- [ ] 出馬票取得機能（スクレイパー実装）
 
 ## ライセンス
 
