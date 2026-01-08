@@ -8,7 +8,7 @@ from src.config import Config
 from src.notion_client import NotionClient
 from src.scraper import Scraper
 from src.usecases.retrospective import RetrospectiveUseCase
-from src.usecases.forecast import ForecastUseCase
+from src.usecases.prediction import PredictionUseCase
 
 
 def parse_date(date_str: str) -> date:
@@ -32,14 +32,14 @@ def main():
     parser = argparse.ArgumentParser(description="競馬レース回顧メモ自動化ツール")
     parser.add_argument(
         "--mode",
-        choices=["retrospective", "forecast"],
+        choices=["retrospective", "prediction"],
         required=True,
-        help="実行モード: retrospective（回顧）またはforecast（予想）"
+        help="実行モード: retrospective（回顧）またはprediction（予想）"
     )
     parser.add_argument(
         "--date",
         type=str,
-        help="対象日（YYYY-MM-DD形式）。forecastモードで使用"
+        help="対象日（YYYY-MM-DD形式）。predictionモードで使用"
     )
     parser.add_argument(
         "--week",
@@ -49,12 +49,6 @@ def main():
     
     args = parser.parse_args()
     
-    # 設定検証
-    try:
-        Config.validate()
-    except ValueError as e:
-        print(f"エラー: {e}")
-        return 1
     
     # クライアントとスクレイパーを初期化
     notion_client = NotionClient()
@@ -63,21 +57,13 @@ def main():
     # モード別処理
     try:
         if args.mode == "retrospective":
-            if not args.week:
-                print("エラー: retrospectiveモードでは--weekオプションが必要です")
-                return 1
-            
-            week_start = parse_date(args.week)
+            week_start = parse_date(args.week) if args.week else date.today()
             usecase = RetrospectiveUseCase(notion_client, scraper)
             usecase.execute(week_start)
             
-        elif args.mode == "forecast":
-            if not args.date:
-                print("エラー: forecastモードでは--dateオプションが必要です")
-                return 1
-            
-            race_date = parse_date(args.date)
-            usecase = ForecastUseCase(notion_client, scraper)
+        elif args.mode == "prediction":
+            race_date = parse_date(args.date) if args.date else date.today()
+            usecase = PredictionUseCase(notion_client, scraper)
             usecase.execute(race_date)
     
     except ValueError as e:

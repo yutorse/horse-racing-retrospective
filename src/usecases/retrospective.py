@@ -27,13 +27,13 @@ class RetrospectiveUseCase:
         回顧処理を実行
         
         Args:
-            week_start: 対象週の開始日
+            week_start: 対象週の開始日（ログ出力用、スクレイピングには影響なし）
         """
-        print(f"回顧モード: {week_start} から1週間のレースを処理します")
+        print(f"回顧モード: アクティブな全てのレースを処理します (週基準: {week_start})")
         
-        # その週の全レース情報を取得
+        # 全レース情報を取得
         try:
-            races = self.scraper.get_races_for_week(week_start)
+            races = self.scraper.get_active_races(mode='retrospective')
         except NotImplementedError:
             print("エラー: 出馬票取得機能が未実装です")
             return
@@ -68,15 +68,34 @@ class RetrospectiveUseCase:
                 
                 horse.notion_page_id = horse_page_id
                 
-                # レース結果情報を作成（実際のデータはスクレイパーから取得する想定）
+                # レース結果情報を作成
+                # 文字列から数値への変換を試みる
+                pos = None
+                try:
+                    pos_str = horse.position
+                    if pos_str and pos_str.isdigit():
+                        pos = int(pos_str)
+                except:
+                    pass
+                
+                wgt = None
+                try:
+                    wgt_str = horse.weight
+                    if wgt_str:
+                        wgt = float(wgt_str)
+                except:
+                    pass
+
                 race_result = RaceResult(
                     race=race,
                     horse=horse,
-                    # 実際の実装では、スクレイパーから結果情報を取得
-                    # position=...,
-                    # jockey=...,
-                    # weight=...,
-                    # odds=...,
+                    position=pos,
+                    jockey=horse.jockey,
+                    weight=wgt,
+                    passing_order=horse.passing_order,
+                    last_3f=horse.last_3f,
+                    finish_time=horse.finish_time,
+                    horse_weight=horse.horse_weight
                 )
                 
                 # 馬ページに出走履歴を追加

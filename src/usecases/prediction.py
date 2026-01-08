@@ -8,7 +8,7 @@ from src.notion_client import NotionClient
 from src.scraper import Scraper
 
 
-class ForecastUseCase:
+class PredictionUseCase:
     """予想モードのユースケース"""
     
     def __init__(self, notion_client: NotionClient, scraper: Scraper):
@@ -27,13 +27,13 @@ class ForecastUseCase:
         予想処理を実行
         
         Args:
-            race_date: 対象日
+            race_date: 対象日（ログ出力用、スクレイピングには影響なし）
         """
-        print(f"予想モード: {race_date} の出馬票を処理します")
+        print(f"予想モード: アクティブな出馬票を処理します (基準日: {race_date})")
         
-        # 指定日の出馬票を取得
+        # 全出馬票を取得
         try:
-            races = self.scraper.get_race_entries(race_date)
+            races = self.scraper.get_active_races(mode='prediction')
         except NotImplementedError:
             print("エラー: 出馬票取得機能が未実装です")
             return
@@ -48,37 +48,19 @@ class ForecastUseCase:
         for race in races:
             print(f"\n処理中: {race.date} {race.venue} {race.name}")
             
-            # レースページを作成（既に存在する場合は取得）
+            # 1. 各出走馬について馬ページを先に検索（メンション作成のため）
+            print(f"  出走馬数: {len(race.horses)}頭")
+            for horse in race.horses:
+                horse_page_id = self.notion_client.find_horse_page(horse.name)
+                horse.notion_page_id = horse_page_id
+            
+            # 2. レースページを作成（ここで出走馬リストも冒頭に追加される）
             race_page_id = self.notion_client.find_or_create_race_page(race)
             if not race_page_id:
                 print(f"  エラー: レースページの作成に失敗しました")
                 continue
             
             race.notion_page_id = race_page_id
-            
-            # 各出走馬について処理
-            print(f"  出走馬数: {len(race.horses)}頭")
-            
-            for horse in race.horses:
-                print(f"    馬: {horse.name}")
-                
-                # 馬ページを検索または作成
-                horse_page_id = self.notion_client.find_or_create_horse_page(horse.name)
-                if not horse_page_id:
-                    print(f"      エラー: 馬ページの作成に失敗しました")
-                    continue
-                
-                horse.notion_page_id = horse_page_id
-                
-                # レースページに出走馬のリンクを追加
-                success = self.notion_client.add_horse_link_to_race_page(
-                    race_page_id, horse_page_id, horse.name
-                )
-                
-                if success:
-                    print(f"      リンクを追加しました")
-                else:
-                    print(f"      エラー: リンクの追加に失敗しました")
+            print(f"  レースページを処理しました")
         
         print(f"\n処理完了: {len(races)}件のレースを処理しました")
-

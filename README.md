@@ -9,10 +9,12 @@
 その週にあった全レースの情報を取得し、出走していた馬に対してメモを作成します。
 すでにメモが存在している馬については、そのメモに加筆する形になります。
 
-### 2. 予想時（Forecast）
+### 2. 予想時（Prediction）
 
-出馬票が確定したら、その週のレース 1 つにつき、1 つのメモを作成します。
-各メモにはそのレースに出る出走馬の馬メモを全て貼るようにします。
+出馬票からその週のレースごとにノートを作成します。
+- **出走馬一覧の自動生成**: 表形式（馬名、性齢、騎手、斤量）で出走馬を一覧表示。
+- **馬ページへの自動リンク**: すでにメモが存在する馬については、自動的に `@メンション` でリンクを貼ります。
+- **精密なデータ抽出**: JRA サイトから馬名、性別、年齢、騎手、斤量を正確に取得します。
 
 ## セットアップ
 
@@ -52,6 +54,7 @@ mise run setup
 - `レース名` (Title) - 必須
 - `開催日` (Date) - 必須
 - `競馬場` (Select) - 必須
+- `R` (Number) - 必須
 - `距離` (Number) - 必須
 - `グレード` (Select) - オプション
 - `条件` (Rich Text) - オプション
@@ -76,14 +79,14 @@ NOTION_RACE_DB_ID = "your_race_db_id"
 
 ```bash
 # 指定週のレースを回顧
-mise run retrospective 2025-01-13
+mise run retrospective
 ```
 
 ### 予想モード
 
 ```bash
 # 指定日の出馬票からレースメモを作成
-mise run forecast 2025-01-17
+mise run prediction
 ```
 
 ### その他の実行方法
@@ -91,7 +94,7 @@ mise run forecast 2025-01-17
 ```bash
 # 直接uv runで実行する場合
 mise run uv run src/main.py --mode retrospective --week 2025-01-13
-mise run uv run src/main.py --mode forecast --date 2025-01-17
+mise run uv run src/main.py --mode prediction --date 2025-01-17
 ```
 
 ### 動作確認
@@ -126,7 +129,7 @@ horse-racing-retrospective/
 │   └── usecases/              # ユースケース
 │       ├── __init__.py
 │       ├── retrospective.py  # 回顧モード
-│       └── forecast.py        # 予想モード
+│       └── prediction.py        # 予想モード
 ├── scripts/                   # 実行スクリプト（今後追加）
 ├── mise.toml                  # mise設定
 ├── requirements.txt           # Python依存関係
@@ -139,10 +142,11 @@ horse-racing-retrospective/
 - [x] mise 設定と環境変数管理
 - [x] Notion API 操作（馬ページ作成・検索）
 - [x] Notion API 操作（レースページ作成・検索）
-- [x] ページブロック追加機能
-- [x] 回顧モード実装（フレームワーク）
-- [x] 予想モード実装（フレームワーク）
-- [ ] 出馬票取得機能（スクレイパー実装）
+- [x] ページブロック追加機能（テーブル・メンション対応）
+- [x] 回顧モード実装
+- [x] 予想モード実装
+- [x] JRA スクレイパー実装（精密抽出対応）
+- [x] レース特定ロジック（日付・競馬場・レース番号による重複回避）
 
 ## ライセンス
 
