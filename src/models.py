@@ -24,6 +24,8 @@ class Horse:
     last_3f: Optional[str] = None
     finish_time: Optional[str] = None
     horse_weight: Optional[str] = None
+    waku: Optional[str] = None  # 枠番
+    horse_number: Optional[str] = None  # 馬番
 
 
 @dataclass
@@ -41,6 +43,10 @@ class Race:
     horses: List[Horse] = None  # 出走馬リスト
     lap_time: Optional[str] = None  # ラップタイム
     notion_page_id: Optional[str] = None  # NotionページID
+    # 映像URL生成用の追加データ
+    kaisai_number: Optional[str] = None  # 第N回のN
+    kaisai_day: Optional[str] = None     # 第N日のN
+    venue_id: Optional[str] = None       # 競馬場ID (1-a)
     
     def __post_init__(self):
         if self.horses is None:
@@ -60,4 +66,6 @@ class RaceResult:
     last_3f: Optional[str] = None  # 上がり3F
     finish_time: Optional[str] = None  # タイム
     horse_weight: Optional[str] = None  # 馬体重
+    waku: Optional[str] = None  # 枠番
+    horse_number: Optional[str] = None  # 馬番
 

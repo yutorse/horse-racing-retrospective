@@ -5,6 +5,7 @@ from datetime import date
 from notion_client import Client
 from notion_client.api_endpoints import Endpoint
 import requests
+import re
 
 from src.config import Config
 from src.models import Race, Horse, RaceResult
@@ -458,6 +459,51 @@ class NotionClient:
         except Exception as e:
             print(f"過去レースセクション確認エラー: {e}")
 
+    def _generate_video_urls(self, race: Race) -> dict:
+        """
+        映像URLを生成
+        """
+        urls = {}
+        if not all([race.date, race.venue_id, race.kaisai_number, race.kaisai_day, race.race_number]):
+            return urls
+            
+        try:
+            base = "https://regist.prc.jp/api/windowopen.aspx?target=race/"
+            year = str(race.date.year)
+            month = f"{race.date.month:02d}"
+            day = f"{race.date.day:02d}"
+            yyyymmdd = f"{year}{month}{day}"
+            yy = year[-2:]
+            
+            # 開催日とレース番号は16進数
+            day_hex = hex(int(race.kaisai_day))[2:]
+            race_hex = hex(int(race.race_number))[2:]
+            
+            # 共通パス
+            common_path = f"{year}/{yyyymmdd}/{yy}{race.venue_id}{race.kaisai_number}{day_hex}{race_hex}"
+            
+            urls["パドック"] = f"{base}{common_path}_p&quality=4"
+            urls["レース"] = f"{base}{common_path}_t&quality=4"
+            urls["パトロール"] = f"{base}{common_path}_a&quality=5&view=1"
+            urls["マルチ"] = f"{base}{common_path}_m&quality=4"
+        except Exception as e:
+            print(f"映像URL生成エラー: {e}")
+            
+        return urls
+
+    def _get_waku_color(self, waku_text: str) -> str:
+        """枠の色をNotionのカラー文字列に変換"""
+        if not waku_text:
+            return "default"
+        if "赤" in waku_text: return "red"
+        if "青" in waku_text: return "blue"
+        if "黄" in waku_text: return "yellow"
+        if "緑" in waku_text: return "green"
+        if "橙" in waku_text: return "orange"
+        if "桃" in waku_text: return "pink"
+        if "白" in waku_text: return "gray"
+        return "default"
+
     def add_race_history_to_horse_page(self, horse_page_id: str, race_result: RaceResult) -> bool:
         """
         馬ページに出走履歴を追加
@@ -536,6 +582,51 @@ class NotionClient:
             # 行4: ラップ、上がり、ポジション
             line4 = f"ラップ: {lap_text} | 上がり: {race_result.last_3f if race_result.last_3f else '取得失敗'} | ポジション: {pos_text}"
 
+            # 映像URLの生成
+            video_urls = self._generate_video_urls(race)
+            video_links = []
+            for label, url in video_urls.items():
+                if video_links:
+                    video_links.append({"type": "text", "text": {"content": " "}})
+                video_links.append({
+                    "type": "text",
+                    "text": {
+                        "content": f"[{label}]",
+                        "link": {"url": url}
+                    }
+                })
+
+            # 枠番・馬番の整形
+            waku_rich_text = []
+            if race_result.waku or race_result.horse_number:
+                # 枠番 (色付き)
+                waku_match = re.search(r'(\d+)', race_result.waku) if race_result.waku else None
+                waku_num = waku_match.group(1) if waku_match else ""
+                if waku_num:
+                    color = self._get_waku_color(race_result.waku)
+                    # 黒枠の場合は太字に
+                    is_black = "黒" in (race_result.waku or "")
+                    waku_rich_text.append({
+                        "type": "text",
+                        "text": {"content": f"{waku_num}枠"},
+                        "annotations": {
+                            "color": color,
+                            "bold": True if is_black else False
+                        }
+                    })
+                
+                # 馬番
+                if race_result.horse_number:
+                    if waku_rich_text:
+                        waku_rich_text.append({"type": "text", "text": {"content": " "}})
+                    waku_rich_text.append({
+                        "type": "text",
+                        "text": {"content": f"{race_result.horse_number}番"}
+                    })
+                
+                if waku_rich_text:
+                    waku_rich_text.append({"type": "text", "text": {"content": " "}})
+
             # 追加するブロックのリスト
             blocks = [
                 {
@@ -558,9 +649,24 @@ class NotionClient:
                                     }
                                 }
                             }
-                        ]
+                        ] + ([{"type": "text", "text": {"content": " "}}] + video_links if video_links else [])
                     }
-                },
+                }
+            ]
+
+            # 詳細情報 (弾丸リスト)
+            # 1. 枠番・馬番
+            if waku_rich_text:
+                blocks.append({
+                    "object": "block",
+                    "type": "bulleted_list_item",
+                    "bulleted_list_item": {
+                        "rich_text": waku_rich_text
+                    }
+                })
+
+            # 2. その他統計データ
+            blocks.extend([
                 {
                     "object": "block",
                     "type": "bulleted_list_item",
@@ -597,7 +703,8 @@ class NotionClient:
                             {
                                 "type": "text",
                                 "text": {
-                                    "content": "レースメモ"
+                                    "content": "レースメモ",
+                                    "link": None
                                 },
                                 "annotations": {"bold": True}
                             }
@@ -617,7 +724,7 @@ class NotionClient:
                     "type": "divider",
                     "divider": {}
                 }
-            ]
+            ])
 
             # ページ末尾に追記
             self.client.blocks.children.append(

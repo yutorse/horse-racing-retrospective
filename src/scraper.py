@@ -23,6 +23,13 @@ class Scraper:
     BASE_URL = "https://www.jra.go.jp"
     JRADB_BASE_URL = "https://www.jra.go.jp/JRADB/accessD.html"
     
+    # 競馬場IDのマッピング (映像URL生成用)
+    VENUE_ID_MAP = {
+        "札幌": "1", "函館": "2", "福島": "3", "新潟": "4",
+        "東京": "5", "中山": "6", "中京": "7", "京都": "8",
+        "阪神": "9", "小倉": "a"
+    }
+    
     def __init__(self, headless: bool = True):
         """
         スクレイパーを初期化
@@ -592,9 +599,19 @@ class Scraper:
                     jockey_elem = jockey_cell.find('a')
                     jockey_name = (jockey_elem.get_text(strip=True) if jockey_elem else jockey_cell.get_text(strip=True)).strip()
 
+                    # 枠番 (2列目/index 1)
+                    waku_cell = cells[1]
+                    waku_img = waku_cell.find('img')
+                    waku_text = waku_img.get('alt') if waku_img else waku_cell.get_text(strip=True)
+                    
+                    # 馬番 (3列目/index 2)
+                    horse_number = cells[2].get_text(strip=True)
+
                     current_horse = Horse(
                         name=name,
                         position=cells[0].get_text(strip=True),
+                        waku=waku_text,
+                        horse_number=horse_number,
                         gender=gender,
                         age=age,
                         jockey=jockey_name,
@@ -664,6 +681,8 @@ class Scraper:
 
             # 実際の開催日をページから抽出
             actual_date = race_date # デフォルト
+            kaisai_number = None
+            kaisai_day = None
             try:
                 page_text = soup.get_text()
                 date_match = re.search(r'(\d{4})年(\d{1,2})月(\d{1,2})日', page_text)
@@ -673,10 +692,14 @@ class Scraper:
                     d = int(date_match.group(3))
                     actual_date = date(y, m, d)
 
-                # 競馬場名: 「n回{競馬場名}m日」から抽出 (例: 1回中山1日)
-                venue_match = re.search(r'\d+回([一-龠]{2,3})\d+日', page_text)
-                if venue_match:
-                    venue = venue_match.group(1)
+                # 開催情報: 「n回{競馬場名}m日」から抽出 (例: 1回中山1日)
+                kaisai_match = re.search(r'(\d+)回([一-龠]{2,3})(\d+)日', page_text)
+                if kaisai_match:
+                    kaisai_number = kaisai_match.group(1)
+                    venue = kaisai_match.group(2)
+                    kaisai_day = kaisai_match.group(3)
+                
+                venue_id = self.VENUE_ID_MAP.get(venue)
                 
                 # コース・距離 (div class="course" or div class="cell course")
                 course_elem = soup.find(class_="course")
@@ -772,7 +795,10 @@ class Scraper:
                 horses=horses,
                 lap_time=lap_time,
                 track_type=track_type,
-                track_condition=track_condition
+                track_condition=track_condition,
+                kaisai_number=kaisai_number,
+                kaisai_day=kaisai_day,
+                venue_id=venue_id
             )
             races.append(race)
             

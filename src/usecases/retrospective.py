@@ -95,7 +95,9 @@ class RetrospectiveUseCase:
                     passing_order=horse.passing_order,
                     last_3f=horse.last_3f,
                     finish_time=horse.finish_time,
-                    horse_weight=horse.horse_weight
+                    horse_weight=horse.horse_weight,
+                    waku=horse.waku,
+                    horse_number=horse.horse_number
                 )
                 
                 # 馬ページに出走履歴を追加
