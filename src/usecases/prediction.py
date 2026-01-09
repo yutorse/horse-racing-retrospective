@@ -33,7 +33,7 @@ class PredictionUseCase:
         
         # 全出馬票を取得
         try:
-            races = self.scraper.get_active_races(mode='prediction')
+            races = self.scraper.get_active_races(mode='prediction', target_date=race_date)
         except NotImplementedError:
             print("エラー: 出馬票取得機能が未実装です")
             return

@@ -176,18 +176,19 @@ class Scraper:
             
         return driver
     
-    def get_active_races(self, mode: str = 'prediction') -> List[Race]:
+    def get_active_races(self, mode: str = 'prediction', target_date: Optional[date] = None) -> List[Race]:
         """
         現在アクティブな（タブに表示されている）全てのレース情報を取得
         
         Args:
             mode: 'forecast' (予想) or 'retrospective' (回顧)
+            target_date: 特定の日付のみを対象にする場合に指定
             
         Returns:
             レース情報のリスト
         """
         races = []
-        print(f"アクティブなレースを取得中... (モード: {mode})")
+        print(f"アクティブなレースを取得中... (モード: {mode}, 対象日: {target_date if target_date else '全て'})")
         
         try:
             # Step 1: メニューページへ遷移
@@ -195,12 +196,21 @@ class Scraper:
             
             # Step 2: 開催日/場リンク (Meeting Links) の数を取得
             # JRA出馬表もレース結果も基本構造(link_list)は共通
-            print("ステップ2を実行中: 開催日/場リンクをカウント...")
-            elements = driver.find_elements(By.CSS_SELECTOR, "div#main div.link_list a")
-            if not elements:
-                # フォールバック (以前のセレクタなど)
-                elements = driver.find_elements(By.CSS_SELECTOR, "div.waku a, td.syutsuba a")
             
+            def get_meeting_links(d):
+                if target_date and mode == 'prediction':
+                    # 日付でフィルタリング (HTMLは "m月d日（曜）" の形式)
+                    date_str = f"{target_date.month}月{target_date.day}日"
+                    xpath = f"//h3[contains(@class, 'sub_header') and contains(text(), '{date_str}')]/following-sibling::div[contains(@class, 'content')][1]//div[contains(@class, 'link_list')]//a"
+                    return d.find_elements(By.XPATH, xpath)
+                else:
+                    elems = d.find_elements(By.CSS_SELECTOR, "div#main div.link_list a")
+                    if not elems:
+                        elems = d.find_elements(By.CSS_SELECTOR, "div.waku a, td.syutsuba a")
+                    return elems
+
+            print("ステップ2を実行中: 開催日/場リンクを抽出...")
+            elements = get_meeting_links(driver)
             meeting_count = len([e for e in elements if e.is_displayed()])
             
             print(f"  {meeting_count}件の開催日/場が見つかりました")
@@ -215,11 +225,10 @@ class Scraper:
                         driver = self._navigate_to_menu_page(mode=mode)
                     
                     # 要素を再取得
-                    elements = driver.find_elements(By.CSS_SELECTOR, "div#main div.link_list a")
-                    if not elements:
-                        elements = driver.find_elements(By.CSS_SELECTOR, "div.waku a, td.syutsuba a")
+                    elements = get_meeting_links(driver)
                     
                     valid_elements = [e for e in elements if e.is_displayed()]
+                    target_link = None
                     if m_idx < len(valid_elements):
                         target_link = valid_elements[m_idx]
                     
